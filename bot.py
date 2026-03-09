@@ -54,7 +54,7 @@ async def main(target_day):
             for q in quiz[subject]:
                 try:
                     raw_question = q.get("question", "No question")
-                    question_text = f"Question {count}/{total_questions}\n\n{raw_question}"
+                    question_text = f"Question {count}/{total_questions}\nSubject: {subject.capitalize()}\n\n{raw_question}"
                     
                     if len(question_text) > 300:
                         question_text = question_text[:297] + "..."
