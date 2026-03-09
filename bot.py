@@ -79,7 +79,10 @@ async def main(target_day):
 if __name__ == "__main__":
     from datetime import datetime
 
-    day_number = datetime.now().day
+    start_date = datetime(2026, 3, 10)
+    today = datetime.now()
+
+    day_number = (today - start_date).days + 1
     target_day = f"day{day_number}"
 
     print(f"Running quiz for {target_day}")
