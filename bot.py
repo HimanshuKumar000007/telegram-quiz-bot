@@ -38,7 +38,7 @@ async def main(target_day):
         "Marking Scheme:\n"
         "✔ Correct: +4\n"
         "❌ Wrong: −1\n\n"
-        "Recommended Time: 20 minutes\n\n"
+        "Recommended Time: 60 minutes\n\n"
         "All the best! 🚀"
     )
     try:
@@ -97,13 +97,19 @@ async def main(target_day):
     # Send ending message
     end_message = (
         "✅ <b>Mock Test Completed!</b>\n\n"
+        "Marking Scheme:\n"
+        "✔ Correct = +4\n"
+        "❌ Wrong = −1\n\n"
         "Check explanations carefully.\n\n"
+        "� <b>Practice more high-quality mocks with advanced features:</b>\n"
+        "• Real exam interface (TCS iON style)\n"
+        "• AI performance analysis\n"
+        "• Detailed solutions\n"
+        "• Topic-wise tests\n"
+        "• Smart progress tracking\n\n"
+        "🌐 <b>Start practicing now:</b>\n"
+        "https://iisersmartprep.space\n\n"
         "<i>⏰ Next Mock Test: Tomorrow 8:00 AM</i>"
-    )
-    
-    promo_message = (
-        "📊 <b>Want full mock tests?</b>\n\n"
-        "Visit: https://iisersmartprep.space"
     )
 
     try:
@@ -114,18 +120,9 @@ async def main(target_day):
             read_timeout=30,
             connect_timeout=30
         )
-        await asyncio.sleep(2)
-        
-        await bot.send_message(
-            chat_id=CHANNEL_ID,
-            text=promo_message,
-            parse_mode="HTML",
-            read_timeout=30,
-            connect_timeout=30
-        )
-        print("Sent ending and promo messages.")
+        print("Sent ending message.")
     except Exception as e:
-        print(f"Error sending ending messages: {e}")
+        print(f"Error sending ending message: {e}")
 
 if __name__ == "__main__":
     from datetime import datetime
