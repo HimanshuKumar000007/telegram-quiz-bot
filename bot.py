@@ -84,6 +84,39 @@ async def main(target_day):
                 except Exception as e:
                     print(f"Error sending poll {count} for {subject}: {e}")
 
+    # Send ending message
+    end_message = (
+        "✅ <b>Mock Test Completed!</b>\n\n"
+        "Check explanations carefully.\n\n"
+        "<i>⏰ Next Mock Test: Tomorrow 8:00 AM</i>"
+    )
+    
+    promo_message = (
+        "📊 <b>Want full mock tests?</b>\n\n"
+        "Visit: https://iisersmartprep.space"
+    )
+
+    try:
+        await bot.send_message(
+            chat_id=CHANNEL_ID,
+            text=end_message,
+            parse_mode="HTML",
+            read_timeout=30,
+            connect_timeout=30
+        )
+        await asyncio.sleep(2)
+        
+        await bot.send_message(
+            chat_id=CHANNEL_ID,
+            text=promo_message,
+            parse_mode="HTML",
+            read_timeout=30,
+            connect_timeout=30
+        )
+        print("Sent ending and promo messages.")
+    except Exception as e:
+        print(f"Error sending ending messages: {e}")
+
 if __name__ == "__main__":
     from datetime import datetime
 
