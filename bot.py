@@ -9,14 +9,21 @@ TOKEN = "7963132152:AAFxdth1fecPewJrDDZl8F1n2cJWsfaOE2w"
 CHANNEL_ID = "@iisersmartprep"
 
 def init_db():
-    conn = sqlite3.connect("database.db")
+    conn = sqlite3.connect("quiz.db")
     c = conn.cursor()
     c.execute('''CREATE TABLE IF NOT EXISTS user_progress
                  (user_id INTEGER PRIMARY KEY, target_day TEXT, question_index INTEGER, score INTEGER)''')
     c.execute('''CREATE TABLE IF NOT EXISTS active_polls
                  (poll_id TEXT PRIMARY KEY, user_id INTEGER, correct_option_id INTEGER)''')
-    c.execute('''CREATE TABLE IF NOT EXISTS user_stats
-                 (user_id INTEGER PRIMARY KEY, streak INTEGER, total_score INTEGER, last_played TEXT)''')
+    # Use the users table created by database.py
+    c.execute('''CREATE TABLE IF NOT EXISTS users (
+                 user_id INTEGER PRIMARY KEY,
+                 username TEXT,
+                 score INTEGER DEFAULT 0,
+                 correct INTEGER DEFAULT 0,
+                 wrong INTEGER DEFAULT 0,
+                 streak INTEGER DEFAULT 0,
+                 last_played TEXT)''')
     conn.commit()
     conn.close()
 
@@ -63,9 +70,14 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     target_day = get_target_day()
     
-    # Initialize user state for the new quiz
-    conn = sqlite3.connect("database.db")
+    conn = sqlite3.connect("quiz.db")
     c = conn.cursor()
+    
+    # Track username if available
+    username = update.effective_user.username or update.effective_user.first_name
+    c.execute("INSERT OR IGNORE INTO users (user_id, username) VALUES (?, ?)", (user_id, username))
+    
+    # Initialize user state for the new quiz
     c.execute("INSERT OR REPLACE INTO user_progress (user_id, target_day, question_index, score) VALUES (?, ?, 0, 0)", 
               (user_id, target_day))
     
@@ -74,9 +86,19 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     conn.commit()
     conn.close()
 
-    await update.message.reply_text(
-        "Welcome to IISER SMART PREP Quiz!\nPress /start to begin today's test." if update.message.text != '/start' else "Welcome to IISER SMART PREP Quiz!\nLet's begin today's test! 🚀"
+    day_num = get_target_day().replace('day', 'Day')
+    intro_message = (
+        f"🎯 IISER SMART PREP — {day_num} Mock Test\n\n"
+        "Subjects:\n"
+        "Physics • Chemistry • Mathematics • Biology\n\n"
+        f"Questions: 20\n"
+        "Marking Scheme:\n"
+        "✔ Correct: +4\n"
+        "❌ Wrong: −1\n\n"
+        "Recommended Time: 20 minutes\n\n"
+        "All the best! 🚀"
     )
+    await update.message.reply_text(intro_message)
     
     # Add a short delay then send the first question
     await asyncio.sleep(1)
@@ -85,7 +107,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def send_next_question(user_id: int, context: ContextTypes.DEFAULT_TYPE):
     data = load_quiz_data()
     
-    conn = sqlite3.connect("database.db")
+    conn = sqlite3.connect("quiz.db")
     c = conn.cursor()
     c.execute("SELECT target_day, question_index, score FROM user_progress WHERE user_id=?", (user_id,))
     row = c.fetchone()
@@ -156,35 +178,56 @@ async def send_next_question(user_id: int, context: ContextTypes.DEFAULT_TYPE):
         # Quiz finished! Ensure we don't send this multiple times by removing progress immediately
         c.execute("DELETE FROM user_progress WHERE user_id=?", (user_id,))
         
-        c.execute("SELECT streak, total_score, last_played FROM user_stats WHERE user_id=?", (user_id,))
+        c.execute("SELECT streak, correct, wrong, score, last_played FROM users WHERE user_id=?", (user_id,))
         stat_row = c.fetchone()
         today_str = datetime.now().strftime("%Y-%m-%d")
         
+        wrong_this_round = total_questions - score
+        
         if stat_row:
-            streak, total, last_played = stat_row
+            streak, total_correct, total_wrong, total_score, last_played = stat_row
+            
+            # Note: total_score tracking logic may be specific to how you want to weight things.
+            # E.g. +4 for correct, -1 for wrong. Since you have total correct separately, let's keep score mapping to +4/-1 logic.
+            round_score = (score * 4) - wrong_this_round
+            
             if last_played != today_str:
                 streak += 1
-                total += score
-                c.execute("UPDATE user_stats SET streak=?, total_score=?, last_played=? WHERE user_id=?", 
-                          (streak, total, today_str, user_id))
+                total_correct += score
+                total_wrong += wrong_this_round
+                total_score += round_score
+                
+                c.execute("UPDATE users SET streak=?, correct=?, wrong=?, score=?, last_played=? WHERE user_id=?", 
+                          (streak, total_correct, total_wrong, total_score, today_str, user_id))
         else:
             streak = 1
-            total = score
-            c.execute("INSERT INTO user_stats (user_id, streak, total_score, last_played) VALUES (?, ?, ?, ?)", 
-                      (user_id, streak, total, today_str))
+            total_correct = score
+            total_wrong = wrong_this_round
+            round_score = (score * 4) - wrong_this_round
+            total_score = round_score
+            c.execute("UPDATE users SET streak=?, correct=?, wrong=?, score=?, last_played=? WHERE user_id=?", 
+                      (streak, total_correct, total_wrong, total_score, today_str, user_id))
+            
         conn.commit()
         
+        round_score = (score * 4) - wrong_this_round
+        
         end_message = (
-            "✅ <b>Mock Test Completed!</b>\n\n"
-            f"Your Score: <b>{score}/{total_questions}</b>\n"
-            "Check explanations carefully.\n\n"
+            "✅ <b>Test Completed!</b>\n\n"
+            "Calculate your score:\n\n"
+            "Correct Answer = +4\n"
+            "Wrong Answer = −1\n\n"
+            f"<b>Your Result: {score} correct, {wrong_this_round} wrong</b>\n"
+            f"<b>Your Score: {round_score} / 80</b>\n\n"
+            "Maximum Marks = 80\n\n"
+            "Share your score in the comments! 👇\n\n"
             "<i>⏰ Next Mock Test: Tomorrow 8:00 AM</i>"
         )
         promo_message = (
             "📊 <b>Want full mock tests?</b>\n\n"
             "Visit: https://iisersmartprep.space"
         )
-        streak_message = f"🔥 Current Streak: {streak} days\n🏆 Total Correct Answers: {total}"
+        streak_message = f"🔥 Current Streak: {streak} days\n🏆 Lifetime Correct Answers: {total_correct}"
         
         await context.bot.send_message(chat_id=user_id, text=end_message, parse_mode="HTML")
         await asyncio.sleep(1)
@@ -201,7 +244,7 @@ async def receive_poll_answer(update: Update, context: ContextTypes.DEFAULT_TYPE
     user_id = answer.user.id
     selected_options = answer.option_ids
     
-    conn = sqlite3.connect("database.db")
+    conn = sqlite3.connect("quiz.db")
     c = conn.cursor()
     c.execute("SELECT user_id, correct_option_id FROM active_polls WHERE poll_id=?", (poll_id,))
     row = c.fetchone()
