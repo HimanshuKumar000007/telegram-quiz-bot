@@ -46,13 +46,18 @@ async def main(target_day):
     except Exception as e:
         print(f"Error sending intro message: {e}")
 
+    count = 1
+    total_questions = sum(len(quiz[s]) for s in subjects if s in quiz)
+
     for subject in subjects:
         if subject in quiz:
             for q in quiz[subject]:
                 try:
-                    question = q.get("question", "No question")
-                    if len(question) > 300:
-                        question = question[:297] + "..."
+                    raw_question = q.get("question", "No question")
+                    question_text = f"Question {count}/{total_questions}\n\n{raw_question}"
+                    
+                    if len(question_text) > 300:
+                        question_text = question_text[:297] + "..."
                         
                     options = q.get("options", ["A", "B", "C", "D"])
                     options = [opt[:97] + "..." if len(opt) > 100 else opt for opt in options]
@@ -63,7 +68,7 @@ async def main(target_day):
                         
                     await bot.send_poll(
                         chat_id=CHANNEL_ID,
-                        question=question,
+                        question=question_text,
                         options=options,
                         type="quiz",
                         correct_option_id=q.get("correct", 0),
@@ -71,10 +76,13 @@ async def main(target_day):
                         read_timeout=30,
                         connect_timeout=30
                     )
-                    print(f"Sent poll for {subject}: {question[:30]}...")
+                    log_text = question_text[:30].replace('\n', ' ')
+                    print(f"Sent poll {count}/{total_questions} for {subject}: {log_text}...")
+                    
+                    count += 1
                     await asyncio.sleep(2)  # Delay between sending polls to prevent ratelimits/timeouts
                 except Exception as e:
-                    print(f"Error sending poll for {subject}: {e}")
+                    print(f"Error sending poll {count} for {subject}: {e}")
 
 if __name__ == "__main__":
     from datetime import datetime
