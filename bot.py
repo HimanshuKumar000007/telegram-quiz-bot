@@ -54,6 +54,8 @@ async def main(target_day):
     except Exception as e:
         print(f"Error sending intro message: {e}")
 
+    await asyncio.sleep(3)  # Pause before first question
+
     count = 1
     total_questions = sum(len(quiz[s]) for s in subjects if s in quiz)
 
